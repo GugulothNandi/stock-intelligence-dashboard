@@ -1,0 +1,332 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Stock Intelligence Dashboard</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+      body {
+        font-family: "Segoe UI";
+        background: #0f172a;
+        color: white;
+        margin: 0;
+      }
+
+      header {
+        background: #020617;
+        padding: 18px;
+        font-size: 26px;
+        text-align: center;
+        font-weight: bold;
+        border-bottom: 1px solid #1e293b;
+      }
+
+      .container {
+        width: 92%;
+        max-width: 1300px;
+        margin: auto;
+        margin-top: 30px;
+      }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 25px;
+      }
+
+      select,
+      button {
+        padding: 10px 16px;
+        font-size: 15px;
+        border-radius: 6px;
+        border: none;
+      }
+
+      select {
+        background: #1e293b;
+        color: white;
+      }
+
+      button {
+        background: #3b82f6;
+        color: white;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: #2563eb;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-bottom: 25px;
+      }
+
+      .card {
+        background: #1e293b;
+        padding: 18px;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.4);
+      }
+
+      .card h3 {
+        margin: 0;
+        color: #94a3b8;
+        font-size: 14px;
+      }
+
+      .card p {
+        font-size: 24px;
+        margin-top: 10px;
+        font-weight: bold;
+      }
+
+      .market {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .chart-box {
+        background: #1e293b;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.4);
+        margin-bottom: 30px;
+      }
+
+      #news {
+        list-style: none;
+        padding: 0;
+      }
+
+      #news li {
+        padding: 10px;
+        border-bottom: 1px solid #334155;
+      }
+
+      #news li:hover {
+        background: #334155;
+        cursor: pointer;
+      }
+
+      .loading {
+        display: none;
+        text-align: center;
+      }
+
+      .spinner {
+        border: 4px solid #1e293b;
+        border-top: 4px solid #3b82f6;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: auto;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      footer {
+        text-align: center;
+        margin-top: 40px;
+        color: #94a3b8;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>📊 Stock Intelligence Dashboard</header>
+
+    <div class="container">
+      <div class="controls">
+        <select id="company">
+          <option value="TCS">TCS</option>
+          <option value="INFY">INFY</option>
+          <option value="RELIANCE">RELIANCE</option>
+          <option value="HDFCBANK">HDFCBANK</option>
+          <option value="ICICIBANK">ICICIBANK</option>
+        </select>
+
+        <button onclick="loadData()">Analyze Stock</button>
+      </div>
+
+      <div class="cards">
+        <div class="card">
+          <h3>52 Week High</h3>
+          <p id="high">-</p>
+        </div>
+
+        <div class="card">
+          <h3>52 Week Low</h3>
+          <p id="low">-</p>
+        </div>
+
+        <div class="card">
+          <h3>Average Price</h3>
+          <p id="avg">-</p>
+        </div>
+
+        <div class="card">
+          <h3>Volatility</h3>
+          <p id="vol">-</p>
+        </div>
+      </div>
+
+      <div class="market">
+        <div class="card">
+          <h3>Top Gainer</h3>
+          <p id="gainer">INFY +3.2%</p>
+        </div>
+
+        <div class="card">
+          <h3>Top Loser</h3>
+          <p id="loser">RELIANCE -1.8%</p>
+        </div>
+      </div>
+
+      <div class="chart-box">
+        <canvas id="chart"></canvas>
+      </div>
+
+      <div class="chart-box">
+        <h3>Latest Market News</h3>
+
+        <ul id="news"></ul>
+      </div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+
+        <p>Loading stock data...</p>
+      </div>
+    </div>
+
+    <footer>Stock Data Analytics Platform • Built with FastAPI</footer>
+
+    <script>
+      let chart;
+
+      async function loadData() {
+        document.getElementById("loading").style.display = "block";
+
+        let company = document.getElementById("company").value;
+
+        let res = await fetch("http://127.0.0.1:8000/data/" + company);
+
+        let data = await res.json();
+
+        let dates = data.map((d) => d.Date);
+
+        let prices = data.map((d) => d.Close);
+
+        let ma = data.map((d) => d.MA7);
+
+        let ctx = document.getElementById("chart");
+
+        if (chart) {
+          chart.destroy();
+        }
+
+        chart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: dates,
+            datasets: [
+              {
+                label: "Closing Price",
+                data: prices,
+                borderColor: "#38bdf8",
+                backgroundColor: "rgba(56,189,248,0.2)",
+                fill: true,
+                tension: 0.4,
+              },
+              {
+                label: "7 Day Moving Average",
+                data: ma,
+                borderColor: "#facc15",
+                borderDash: [6, 6],
+                tension: 0.4,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                labels: { color: "white" },
+              },
+            },
+            scales: {
+              x: { ticks: { color: "white" } },
+              y: { ticks: { color: "white" } },
+            },
+          },
+        });
+
+        let summaryRes = await fetch(
+          "http://127.0.0.1:8000/summary/" + company,
+        );
+
+        let summary = await summaryRes.json();
+
+        document.getElementById("high").innerText =
+          summary["52_week_high"].toFixed(2);
+
+        document.getElementById("low").innerText =
+          summary["52_week_low"].toFixed(2);
+
+        document.getElementById("avg").innerText =
+          summary["average_close"].toFixed(2);
+
+        document.getElementById("vol").innerText =
+          summary["volatility"].toFixed(2);
+
+        loadNews();
+
+        document.getElementById("loading").style.display = "none";
+      }
+
+      async function loadNews() {
+        let res = await fetch("http://127.0.0.1:8000/news");
+
+        let data = await res.json();
+
+        let newsData = data.news;
+
+        let newsList = document.getElementById("news");
+
+        newsList.innerHTML = "";
+
+        newsData.forEach((n) => {
+          let li = document.createElement("li");
+
+          let link = document.createElement("a");
+
+          link.href = n.url;
+          link.innerText = n.title + " (" + n.source + ")";
+          link.target = "_blank";
+
+          link.style.color = "white";
+
+          li.appendChild(link);
+
+          newsList.appendChild(li);
+        });
+      }
+    </script>
+  </body>
+</html>
